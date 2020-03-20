@@ -11,6 +11,8 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/kelseyhightower/envconfig"
 
@@ -36,6 +38,7 @@ func handler(input Input) (*Output, error) {
 	var env struct {
 		BucketName string `envconfig:"BUCKET_NAME" required:"true"`
 		StripsDir  string `envconfig:"STRIPS_DIR" required:"true"`
+		TableName  string `envconfig:"TABLE_NAME"`
 	}
 	if err := envconfig.Process("", &env); err != nil {
 		return nil, err
@@ -77,9 +80,18 @@ func handler(input Input) (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	log.Printf("[INFO] Upload completed: %s", stripURL)
-	return &Output{comic, stripURL}, nil
+
+	output := &Output{comic, stripURL}
+
+	if env.TableName != "" {
+		log.Printf("[INFO] Writing metadata to DynamoDB table %q ...", env.TableName)
+		if err := storeMetadata(env.TableName, output); err != nil {
+			return nil, err
+		}
+	}
+
+	return output, nil
 }
 
 func uploadStrip(r io.Reader, bucketName, stripPath string) (string, error) {
@@ -99,4 +111,23 @@ func uploadStrip(r io.Reader, bucketName, stripPath string) (string, error) {
 	}
 
 	return upload.Location, nil
+}
+
+func storeMetadata(tableName string, metadata interface{}) error {
+	av, err := dynamodbattribute.MarshalMap(metadata)
+	if err != nil {
+		return err
+	}
+
+	sess, err := session.NewSession()
+	if err != nil {
+		return err
+	}
+
+	_, err = dynamodb.New(sess).PutItem(&dynamodb.PutItemInput{
+		TableName: aws.String(tableName),
+		Item:      av,
+	})
+
+	return err
 }
