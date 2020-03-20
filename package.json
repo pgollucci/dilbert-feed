@@ -19,6 +19,7 @@
     "typescript": "~3.7.5"
   },
   "dependencies": {
+    "@aws-cdk/aws-dynamodb": "^1.30.0",
     "@aws-cdk/aws-events": "^1.30.0",
     "@aws-cdk/aws-events-targets": "^1.30.0",
     "@aws-cdk/aws-lambda": "^1.30.0",

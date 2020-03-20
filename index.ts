@@ -1,4 +1,5 @@
 import cdk = require('@aws-cdk/core');
+import dynamodb = require('@aws-cdk/aws-dynamodb');
 import events = require('@aws-cdk/aws-events');
 import lambda = require('@aws-cdk/aws-lambda');
 import s3 = require('@aws-cdk/aws-s3');
@@ -24,6 +25,11 @@ export class DilbertFeedStack extends cdk.Stack {
       expiration: cdk.Duration.days(30)
     });
 
+    const table = new dynamodb.Table(this, 'Table', {
+      partitionKey: { name: 'date', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST
+    });
+
     const getStrip = new lambda.Function(this, 'GetStripFunc', {
       functionName: `${id}-get-strip`,
       code: lambda.Code.fromAsset('bin/get-strip'),
@@ -33,10 +39,12 @@ export class DilbertFeedStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(10),
       environment: {
         BUCKET_NAME: bucket.bucketName,
-        STRIPS_DIR: stripsDir
+        STRIPS_DIR: stripsDir,
+        TABLE_NAME: table.tableName
       }
     });
     bucket.grantPut(getStrip);
+    table.grantWriteData(getStrip);
 
     const genFeed = new lambda.Function(this, 'GenFeedFunc', {
       functionName: `${id}-gen-feed`,
@@ -48,10 +56,12 @@ export class DilbertFeedStack extends cdk.Stack {
       environment: {
         BUCKET_NAME: bucket.bucketName,
         STRIPS_DIR: stripsDir,
-        FEED_PATH: feedPath
+        FEED_PATH: feedPath,
+        TABLE_NAME: table.tableName
       }
     });
     bucket.grantPut(genFeed);
+    table.grantReadData(genFeed);
 
     const heartbeatEndpoint = ssm.StringParameter.valueForStringParameter(this, `/${id}/heartbeat-endpoint`);
     const heartbeat = new lambda.Function(this, 'HeartbeatFunc', {
@@ -105,6 +115,7 @@ export class DilbertFeedStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'BucketName', { value: bucket.bucketName });
     new cdk.CfnOutput(this, 'FeedUrl', { value: `https://${bucket.bucketRegionalDomainName}/${feedPath}` });
+    new cdk.CfnOutput(this, 'TableName', { value: table.tableName });
     new cdk.CfnOutput(this, 'HeartbeatEndpoint', { value: heartbeatEndpoint });
   }
 }
