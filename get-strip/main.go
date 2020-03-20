@@ -27,7 +27,6 @@ type Input struct {
 // Output is the output returned by the Lambda function.
 type Output struct {
 	*dilbert.Comic
-	UploadURL string `json:"upload_url"`
 }
 
 func main() {
@@ -82,16 +81,17 @@ func handler(input Input) (*Output, error) {
 	}
 	log.Printf("[INFO] Upload completed: %s", stripURL)
 
-	output := &Output{comic, stripURL}
+	// Replace asset URL with our S3 URL
+	comic.ImageURL = stripURL
 
 	if env.TableName != "" {
 		log.Printf("[INFO] Writing metadata to DynamoDB table %q ...", env.TableName)
-		if err := storeMetadata(env.TableName, output); err != nil {
+		if err := storeMetadata(env.TableName, comic); err != nil {
 			return nil, err
 		}
 	}
 
-	return output, nil
+	return &Output{comic}, nil
 }
 
 func uploadStrip(r io.Reader, bucketName, stripPath string) (string, error) {
@@ -113,8 +113,8 @@ func uploadStrip(r io.Reader, bucketName, stripPath string) (string, error) {
 	return upload.Location, nil
 }
 
-func storeMetadata(tableName string, metadata interface{}) error {
-	av, err := dynamodbattribute.MarshalMap(metadata)
+func storeMetadata(tableName string, comic *dilbert.Comic) error {
+	av, err := dynamodbattribute.MarshalMap(comic)
 	if err != nil {
 		return err
 	}
