@@ -55,7 +55,6 @@ export class DilbertFeedStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(10),
       environment: {
         BUCKET_NAME: bucket.bucketName,
-        STRIPS_DIR: stripsDir,
         FEED_PATH: feedPath,
         TABLE_NAME: table.tableName
       }

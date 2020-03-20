@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"time"
 
@@ -27,8 +26,8 @@ func main() {
 func handler(input Input) (*Output, error) {
 	var env struct {
 		BucketName string `envconfig:"BUCKET_NAME" required:"true"`
-		StripsDir  string `envconfig:"STRIPS_DIR" required:"true"`
 		FeedPath   string `envconfig:"FEED_PATH" required:"true"`
+		TableName  string `envconfig:"TABLE_NAME" required:"true"`
 	}
 	if err := envconfig.Process("", &env); err != nil {
 		return nil, err
@@ -36,13 +35,12 @@ func handler(input Input) (*Output, error) {
 	log.Printf("[DEBUG] env = %+v", env)
 
 	var (
-		now     = time.Now()
-		baseURL = fmt.Sprintf("https://%s.s3.amazonaws.com/%s", env.BucketName, env.StripsDir)
-		buf     bytes.Buffer
+		now = time.Now()
+		buf bytes.Buffer
 	)
 
 	log.Printf("[INFO] Generating feed for date %s ...", now.Format(time.RFC3339))
-	if err := generateFeed(&buf, now, feedLength, baseURL); err != nil {
+	if err := generateFeed(&buf, now, feedLength, env.TableName); err != nil {
 		return nil, err
 	}
 
