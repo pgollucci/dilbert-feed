@@ -9,5 +9,7 @@ path = "echo/lambda.rs"
 
 [dependencies]
 lambda = { git = "https://github.com/awslabs/aws-lambda-rust-runtime", branch = "master" }
+log = "0.4"
 serde_json = "1.0"
+simple_logger = "1.6"
 tokio = { version = "0.2", features = ["full"] }
