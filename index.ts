@@ -66,6 +66,18 @@ export class DilbertFeedStack extends cdk.Stack {
       }
     })
 
+    new lambda.Function(this, 'EchoFunc', {
+      functionName: `${id}-echo`,
+      code: lambda.Code.fromAsset('bin/echo'),
+      handler: 'bootstrap',
+      runtime: lambda.Runtime.PROVIDED,
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        RUST_BACKTRACE: 'full'
+      }
+    })
+
     const taskRetry = {
       errors: ['States.TaskFailed'],
       interval: cdk.Duration.seconds(10),

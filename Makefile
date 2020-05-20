@@ -1,6 +1,7 @@
 ENV   ?= dev
 STACK  = dilbert-feed-$(ENV)
 FUNCS := $(subst /,,$(dir $(wildcard */main.go)))
+RUST_FUNCS := $(subst /,,$(dir $(wildcard */lambda.rs)))
 CDK   ?= ./node_modules/.bin/cdk
 
 #
@@ -30,11 +31,20 @@ bootstrap: build transpile
 
 build_funcs := $(FUNCS:%=build-%)
 
-build: $(build_funcs)
-
 $(build_funcs):
 	mkdir -p bin/$(@:build-%=%)
 	GOOS=linux GOARCH=amd64 go build -trimpath -ldflags=-buildid= -o bin/$(@:build-%=%)/handler ./$(@:build-%=%)
+
+rust_funcs := $(RUST_FUNCS:%=rust-%)
+
+rust: $(rust_funcs)
+
+$(rust_funcs):
+	cross build --release --target x86_64-unknown-linux-musl --bin $(@:rust-%=%)
+	mkdir -p bin/$(@:rust-%=%)
+	cp -f target/x86_64-unknown-linux-musl/release/$(@:rust-%=%) bin/$(@:rust-%=%)/bootstrap
+
+build: $(build_funcs) $(rust_funcs)
 
 transpile: node_modules
 	@npm run build
